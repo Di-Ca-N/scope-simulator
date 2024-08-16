@@ -1,0 +1,29 @@
+var x = 0;
+
+function incX(n) {
+    x = (x + n);
+}
+
+function printX() {
+    print(x);
+}
+
+function primeiro() {
+    incX(3);
+    print(x);
+}
+
+function segundo() {
+    var x = 5;
+    incX(2);
+    printX();
+}
+
+function main() {
+    incX(1);
+    primeiro();
+    printX();
+    segundo();
+}
+
+main();
