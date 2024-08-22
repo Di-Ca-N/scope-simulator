@@ -17,21 +17,13 @@ class ImageSlideshow:
         self.ax.axis("off")
         self.load_image()
 
-        self.ax_button_next = plt.axes([0.8, 0.02, 0.1, 0.05])
+        self.ax_button_next = plt.axes((0.8, 0.02, 0.1, 0.05))
         self.button_next = Button(self.ax_button_next, "Next")
         self.button_next.on_clicked(self.next_image)
 
-        self.ax_button_prev = plt.axes([0.6, 0.02, 0.1, 0.05])
+        self.ax_button_prev = plt.axes((0.6, 0.02, 0.1, 0.05))
         self.button_prev = Button(self.ax_button_prev, "Previous")
         self.button_prev.on_clicked(self.prev_image)
-
-        self.ani = animation.FuncAnimation(
-            self.fig,
-            self.update_frame,
-            frames=len(self.images),
-            interval=self.delay,
-            repeat=True,
-        )
 
     def load_images(self):
         image_files = [

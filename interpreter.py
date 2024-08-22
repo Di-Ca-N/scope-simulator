@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from antlr4 import *
 from parser.PoodleLexer import PoodleLexer
 from parser.PoodleParser import PoodleParser
@@ -5,10 +7,40 @@ from parser.PoodleVisitor import PoodleVisitor
 
 from scoping import Scoper, StackFrame
 
+
+@dataclass
+class Function:
+    name: str
+    args: PoodleParser.FuncArgsContext
+    body: PoodleParser.FuncBodyContext
+    staticParent: StackFrame
+    interpreter: 'PoodleInterpreter'
+
+    def getArgNames(self):
+        if self.args.children is None:
+            return []
+        return [arg.getText() for arg in self.args.children]
+
+    def run(self, params: list[int], callback=None, callbackCtx=None):
+        self.interpreter.scoping.pushScope(StackFrame(self.name, staticLink=self.staticParent))
+
+        for paramName, paramValue in zip(self.getArgNames(), params):
+            self.interpreter.scoping.declare(paramName, paramValue)
+
+        if callback:
+            callback(self.interpreter.scoping.call_stack, callbackCtx, f"{self.name}({self.args.getText()}) {{")
+
+        self.interpreter.visit(self.body)
+
+        if callback:
+            callback(self.interpreter.scoping.call_stack, callbackCtx, "}")
+        self.interpreter.scoping.popScope()
+
+
 class PoodleInterpreter(PoodleVisitor):
     def __init__(self, scopingType, stepCallback=None):
         self.scoping: Scoper = scopingType
-        self.functions = {}
+        self.functions: dict[str, Function] = {}
         self.step_callback = stepCallback or (lambda _stack, _ctx, _line_text: None)
 
     def visitProgStmt(self, ctx: PoodleParser.ProgStmtContext):
@@ -28,13 +60,7 @@ class PoodleInterpreter(PoodleVisitor):
 
         elif ctx.funcDef():
             _, funcName, _, args, _, _, body, _ = ctx.funcDef().children
-            self.functions[funcName.getText()] = {
-                "name": funcName.getText(),
-                "args": args,
-                "body": body,
-                "staticParent": self.scoping.getTopScope(),
-            }
-
+            self.functions[funcName.getText()] = Function(name=funcName.getText(), args=args, body=body, staticParent=self.scoping.getTopScope(), interpreter=self)
         elif ctx.funcCall():
             funcName, _, args, _, _ = ctx.funcCall().children
 
@@ -44,17 +70,11 @@ class PoodleInterpreter(PoodleVisitor):
 
             else:
                 function = self.functions[funcName.getText()]
-                funcArgs = {}
-                if function["args"].children is not None:
-                    for arg, parameter in zip(args.children, function["args"].children):
-                        funcArgs[parameter.getText()] = self.eval(arg.getText())
-                self.scoping.pushScope(StackFrame(funcName.getText(), staticLink=function["staticParent"], vars=funcArgs))
+                funcParams = []
+                if args.children is not None:
+                    funcParams = [self.eval(arg.getText()) for arg in args.children]
 
-                self.step_callback(self.scoping.call_stack, ctx, f"{function['name']}({function['args'].getText()}) {{")
-                self.visit(self.functions[funcName.getText()]["body"])
-                self.step_callback(self.scoping.call_stack, ctx, "}")
-
-                self.scoping.popScope()
+                function.run(funcParams, self.step_callback, ctx)
 
     def evalMathExpr(self, ctx: PoodleParser.MathExprContext):
         match ctx.children:
@@ -86,7 +106,7 @@ class PoodleInterpreter(PoodleVisitor):
             ]:
                 return self.evalMathExpr(expr)
 
-    def eval(self, value):
+    def eval(self, value: str) -> int:
         if value.isnumeric():
             return int(value)
         return self.scoping.get(value)
