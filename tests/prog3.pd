@@ -1,0 +1,18 @@
+var x = 10;
+
+function f() {
+    print(x);
+}
+
+function g() {
+    var x = 20;
+    f();
+}
+
+function main() {
+    f();
+    g();
+}
+
+main();
+
