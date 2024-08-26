@@ -1,6 +1,7 @@
 
 from antlr4 import *
 import pathlib
+import shutil
 import click
 
 from visualization import StepVisualizer, ImageSlideshow
@@ -36,6 +37,6 @@ def main(file, scoping, visualize):
     if visualize:
         slideshow = ImageSlideshow("visuals")
         slideshow.show()
-
+        shutil.rmtree(pathlib.Path(slideshow.image_folder))
 
 main()
